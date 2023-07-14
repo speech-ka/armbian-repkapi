@@ -1,0 +1,552 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Igor Pecovnik <igor.pecovnik@****l.com>
+Date: Thu, 13 Jul 2023 22:18:26 +0000
+Subject: Patching u-boot sunxi64 files arch/arm/dts/Makefile
+ arch/arm/dts/sun50i-h5-cpu-opp-1.2ghz.dtsi
+ arch/arm/dts/sun50i-h5-repka-pi3.dts configs/Repka_H5_defconfig
+
+Signed-off-by: Igor Pecovnik <igor.pecovnik@****l.com>
+---
+ arch/arm/dts/Makefile                      |   1 +
+ arch/arm/dts/sun50i-h5-cpu-opp-1.2ghz.dtsi |  73 ++
+ arch/arm/dts/sun50i-h5-repka-pi3.dts       | 407 ++++++++++
+ configs/Repka_H5_defconfig                 |  20 +
+ 4 files changed, 501 insertions(+)
+
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index a7e0d9f6c0..cae10ccbc1 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -677,10 +677,11 @@ dtb-$(CONFIG_MACH_SUN8I_V3S) += \
+ 	sun8i-s3-elimo-initium.dtb \
+ 	sun8i-s3-pinecube.dtb \
+ 	sun8i-v3-sl631-imx179.dtb \
+ 	sun8i-v3s-licheepi-zero.dtb
+ dtb-$(CONFIG_MACH_SUN50I_H5) += \
++	sun50i-h5-repka-pi3.dtb \
+ 	sun50i-h5-bananapi-m2-plus.dtb \
+ 	sun50i-h5-emlid-neutis-n5-devboard.dtb \
+ 	sun50i-h5-libretech-all-h3-cc.dtb \
+ 	sun50i-h5-libretech-all-h3-it.dtb \
+ 	sun50i-h5-libretech-all-h5-cc.dtb \
+diff --git a/arch/arm/dts/sun50i-h5-cpu-opp-1.2ghz.dtsi b/arch/arm/dts/sun50i-h5-cpu-opp-1.2ghz.dtsi
+new file mode 100644
+index 0000000000..f481df59f2
+--- /dev/null
++++ b/arch/arm/dts/sun50i-h5-cpu-opp-1.2ghz.dtsi
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++// Copyright (C) 2020 Chen-Yu Tsai <wens@csie.org>
++
++/ {
++	cpu_opp_table: opp-table-cpu {
++		compatible = "operating-points-v2";
++		opp-shared;
++
++		opp-288000000 {
++			opp-hz = /bits/ 64 <288000000>;
++			opp-microvolt = <1000000 1000000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-336000000 {
++			opp-hz = /bits/ 64 <336000000>;
++			opp-microvolt = <1040000 1040000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-480000000 {
++			opp-hz = /bits/ 64 <480000000>;
++			opp-microvolt = <1040000 1040000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-648000000 {
++			opp-hz = /bits/ 64 <648000000>;
++			opp-microvolt = <1040000 1040000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-816000000 {
++			opp-hz = /bits/ 64 <816000000>;
++			opp-microvolt = <1100000 1100000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-1008000000 {
++			opp-hz = /bits/ 64 <1008000000>;
++			opp-microvolt = <1260000 1260000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		}; 
++
++		opp-10560000000 {
++			opp-hz = /bits/ 64 <1056000000>;
++			opp-microvolt = <1260000 1260000 1300000>;
++			clock-latency-ns = <244144>; /* 8 32k periods */
++		};
++
++		opp-1200000000 {
++			opp-hz = /bits/ 64 <1200000000>;
++			opp-microvolt = <1320000 1320000 1320000>;
++			clock-latency-ns = <244144>; /* 8 32k periods  */
++		};
++	};
++};
++
++&cpu0 {
++	operating-points-v2 = <&cpu_opp_table>;
++};
++
++&cpu1 {
++	operating-points-v2 = <&cpu_opp_table>;
++};
++
++&cpu2 {
++	operating-points-v2 = <&cpu_opp_table>;
++};
++
++&cpu3 {
++	operating-points-v2 = <&cpu_opp_table>;
++};
+diff --git a/arch/arm/dts/sun50i-h5-repka-pi3.dts b/arch/arm/dts/sun50i-h5-repka-pi3.dts
+new file mode 100644
+index 0000000000..1d36ca1b64
+--- /dev/null
++++ b/arch/arm/dts/sun50i-h5-repka-pi3.dts
+@@ -0,0 +1,407 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++// Copyright (C) 2016 ARM Ltd.
++
++/dts-v1/;
++#include "sun50i-h5.dtsi"
++#include "sun50i-h5-cpu-opp-1.2ghz.dtsi"
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/pinctrl/sun4i-a10.h>
++
++/ {
++	model = "Repka-Pi3-H5";
++	repka-freq = "1.2 GHz";
++	repka-pinout = "1";
++	compatible = "rbs,repka-pi3", "allwinner,sun50i-h5";
++
++	reg_vcc3v3: vcc3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "vcc3v3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++	};
++
++	aliases {
++		ethernet0 = &emac;
++		serial0 = &uart0;
++		serial1 = &uart1;
++		spi0 = &spi0;
++		spi1 = &spi1;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	connector {
++		compatible = "hdmi-connector";
++		type = "a";
++
++		port {
++			hdmi_con_in: endpoint {
++				remote-endpoint = <&hdmi_out_con>;
++			};
++		};
++	};
++
++	ext_osc32k: ext_osc32k_clk {
++		#clock-cells = <0>;
++		compatible = "fixed-clock";
++		clock-frequency = <32768>;
++		clock-output-names = "ext_osc32k";
++	};
++
++	leds {
++		compatible = "gpio-leds";
++		
++		status {
++			label = "rbs:red:status";
++			gpios = <&pio 0 20 GPIO_ACTIVE_HIGH>;
++			linux,default-trigger = "heartbeat";
++		};
++	};
++
++	wifi_pwrseq: wifi_pwrseq {
++		compatible = "mmc-pwrseq-simple";
++		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; 
++		post-power-on-delay-ms = <200>; 
++	};
++
++};
++
++&codec {
++	allwinner,audio-routing =
++		"Line Out", "LINEOUT",
++		"MIC1", "Mic",
++		"Mic",  "MBIAS";
++	status = "okay";
++};
++
++&cpu0 {
++	cpu-supply = <&reg_dcdc2>;
++};
++
++&cpu1 {
++	cpu-supply = <&reg_dcdc2>;
++};
++
++&cpu2 {
++	cpu-supply = <&reg_dcdc2>;
++};
++
++&cpu3 {
++	cpu-supply = <&reg_dcdc2>;
++};
++
++&de {
++	status = "okay";
++};
++
++&ehci0 {
++	status = "okay";
++};
++
++&ehci1 {
++	status = "okay";
++};
++
++&ehci2 {
++	status = "okay";
++};
++
++&ehci3 {
++	status = "okay";
++};
++
++&emac {
++	phy-handle = <&int_mii_phy>;
++	phy-mode = "mii";
++	allwinner,leds-active-low;
++	status = "okay";
++};
++
++&hdmi {
++	status = "okay";
++};
++
++&hdmi_out {
++	hdmi_out_con: endpoint {
++		remote-endpoint = <&hdmi_con_in>;
++	};
++};
++
++&i2s2 {
++	status = "okay";
++};
++
++&ir {
++	pinctrl-names = "default";
++	pinctrl-0 = <&r_ir_rx_pin>;
++	status = "disabled";
++};
++
++&rtc {
++	clocks = <&ext_osc32k>;
++};
++
++&mmc0 {
++	vmmc-supply = <&reg_vcc3v3>;
++	bus-width = <4>;
++	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
++	status = "okay";
++};
++
++&mmc1 {
++	vmmc-supply = <&reg_vcc3v3>;
++	mmc-pwrseq = <&wifi_pwrseq>;
++	bus-width = <4>;
++	non-removable;
++	status = "okay";
++	
++	brcmf: wifi@1 {
++		reg = <1>;
++		compatible = "brcm,bcm4329-fmac";
++		interrupt-parent = <&r_pio>;
++		interrupts = <0 7 IRQ_TYPE_LEVEL_LOW>;	/* PL7 */
++		interrupt-names = "host-wake";
++	};
++
++};
++
++&mmc2 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&mmc2_8bit_pins>;
++	vmmc-supply = <&reg_vcc3v3>;
++	bus-width = <8>;
++	non-removable;
++	cap-mmc-hw-reset;
++	status = "disabled";
++};
++
++&ohci0 {
++	status = "okay";
++};
++
++&ohci1 {
++	status = "okay";
++};
++
++&ohci2 {
++	status = "okay";
++};
++
++&ohci3 {
++	status = "okay";
++};
++
++&i2c1 {
++	status = "disabled";	/* PA19,PA18 */
++};
++
++&i2c0 {
++	status = "disabled";	/* PA11, PA12 */
++};
++
++&r_i2c {
++	status = "okay";
++
++	axp22x: pmic@34 {
++		compatible = "x-powers,axp221";
++		reg = <0x34>;
++		interrupt-parent = <&r_intc>;
++		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
++	};
++};
++
++#include "axp22x.dtsi"
++
++&ac_power_supply {
++	status = "okay";
++};
++
++&reg_aldo2 {			/* VCC-PG 1.8 */
++	regulator-always-on;
++	regulator-min-microvolt = <1800000>;
++	regulator-max-microvolt = <1800000>;
++	regulator-name = "vcc-pg";
++};
++
++&reg_aldo3 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-pll-avcc";
++};
++
++&reg_dc1sw {
++	regulator-name = "vcc-phy";
++};
++
++&reg_dcdc1 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-3v3";
++};
++
++&reg_dcdc2 {
++	regulator-always-on;
++	regulator-min-microvolt = <1000000>;
++	regulator-max-microvolt = <1360000>; 
++	regulator-name = "vdd-cpux-a";
++};
++
++&reg_dcdc3 {
++	regulator-always-on;
++	regulator-min-microvolt = <1000000>;
++	regulator-max-microvolt = <1360000>;
++	regulator-name = "vdd-cpux-b";
++};
++
++/* DCDC3 is polyphased with DCDC2 */
++
++/*
++ * The DRAM chips used by rbs-h5 boards are DDR3 -compatibl
++ * 
++ */
++&reg_dcdc5 {
++	regulator-always-on;
++	regulator-min-microvolt = <1500000>;
++	regulator-max-microvolt = <1500000>;
++	regulator-name = "vcc-dram";
++};
++
++&reg_dldo1 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-wifi-1";
++};
++
++&reg_dldo2 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-wifi-2";
++};
++
++&reg_dldo3 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-wifi-3";
++};
++
++&reg_dldo4 {
++	regulator-always-on;
++	regulator-min-microvolt = <3300000>;
++	regulator-max-microvolt = <3300000>;
++	regulator-name = "vcc-wifi-4";
++};
++			/* VCC-wifi-IO 1.8 */
++&reg_eldo1 {
++	regulator-always-on;
++	regulator-min-microvolt = <1800000>;
++	regulator-max-microvolt = <1800000>;
++	regulator-name = "vcc-wifi-io-1";
++};
++
++&reg_eldo2 {
++	regulator-always-on;
++	regulator-min-microvolt = <1800000>;
++	regulator-max-microvolt = <1800000>;
++	regulator-name = "vcc-wifi-io-2";
++};
++
++&reg_eldo3 {
++	regulator-always-on;
++	regulator-min-microvolt = <1800000>;
++	regulator-max-microvolt = <1800000>;
++	regulator-name = "vcc-wifi-io-3";
++};
++
++
++&reg_rtc_ldo {
++	regulator-name = "vcc-rtc";
++};
++
++&spi0 {
++	pinctrl-names = "default", "default";
++	pinctrl-1 = <&spi0_cs1>;
++	cs-gpios = <0>, <&pio 0 3 0>; /* PA3 */
++
++	status = "disabled";
++	spidev@0 {
++		compatible = "rohm,dh2228fv";  
++		status = "okay";
++		reg = <0>;
++		spi-max-frequency = <1000000>;
++	};
++	spidev@1 {
++		compatible = "rohm,dh2228fv";  
++		status = "okay";
++		reg = <1>;
++		spi-max-frequency = <1000000>;
++	};
++};
++
++&spi1 {
++	pinctrl-names = "default", "default";
++        
++        status = "disabled";
++	spidev@0 {
++		compatible = "rohm,dh2228fv";
++		status = "okay";
++		reg = <0>;
++		spi-max-frequency = <1000000>;
++       };
++};
++
++&pio {
++		spi0_cs1: spi0_cs1 {		
++			pins = "PA3";
++			function = "gpio_out";
++			output-high;
++		};
++};
++
++
++&r_pwm {
++	status = "disabled";
++};
++
++/* to debag serial */
++&uart0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart0_pa_pins>;
++	status = "okay";
++};
++
++/* to bt-wifi module */
++&uart1 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
++	uart-has-rtscts;
++	status = "okay";
++	
++	
++
++};
++
++&uart2 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&uart2_pins>, <&uart2_rts_cts_pins>;
++	status = "disabled";
++};
++
++&usb_otg {
++	dr_mode = "host";
++	status = "okay";
++};
++
++&usbphy {
++	status = "okay";
++};
++
++
+diff --git a/configs/Repka_H5_defconfig b/configs/Repka_H5_defconfig
+new file mode 100644
+index 0000000000..bdd73bccc9
+--- /dev/null
++++ b/configs/Repka_H5_defconfig
+@@ -0,0 +1,20 @@
++CONFIG_ARM=y
++CONFIG_ARCH_SUNXI=y
++CONFIG_DEFAULT_DEVICE_TREE="sun50i-h5-repka-pi3"
++CONFIG_SPL=y
++CONFIG_MACH_SUN50I_H5=y
++CONFIG_DRAM_CLK=672
++CONFIG_DRAM_ZQ=3881977
++CONFIG_SYS_CLK_FREQ=312000000
++# CONFIG_DRAM_ODT_EN is not set
++CONFIG_SPL_SPI_SUNXI=y
++# CONFIG_SYS_MALLOC_CLEAR_ON_INIT is not set
++CONFIG_SPL_I2C=y
++# CONFIG_SPL_SYS_I2C_LEGACY=y
++CONFIG_SYS_I2C_MVTWSI=y
++CONFIG_SYS_I2C_SLAVE=0x7f
++CONFIG_SYS_I2C_SPEED=400000
++CONFIG_SUN8I_EMAC=y
++CONFIG_USB_EHCI_HCD=y
++CONFIG_USB_OHCI_HCD=y
++# CONFIG_USB_MUSB_GADGET=y
+-- 
+Created with Armbian build tools https://github.com/armbian/build
+

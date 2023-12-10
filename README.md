@@ -55,7 +55,7 @@ sudo armbian-config
 ```
 - Переходим в System settings и выбираем Freeze.
 ![image](https://psv4.userapi.com/c237131/u306539345/docs/d56/11b3ab1df52e/12345.png)
-- Нажимаем кнопку Freezee
+- Нажимаем кнопку Freeze
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d10/26ca6e301b59/123456.png)
 - Ждем
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d36/f3a68d1b45e7/1234567.png)

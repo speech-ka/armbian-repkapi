@@ -47,6 +47,8 @@ cd armbian-repkapi
 
 ### ВАЖНО
 
+## Заморозка обновления ядра и загрузчика
+
 После первого запуска не обновляйте систему! Так как, у нас неофициальная сборка Armbian и о нашей плате официальные сборки не знают, надо заморозить обновление Ядра и UBoot загрузчкика.
 
 - Пишем:
@@ -61,6 +63,20 @@ sudo armbian-config
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d36/f3a68d1b45e7/1234567.png)
 - Фон станет красным, не пугаемся это наоборот норма.
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d42/8a8c5a52a009/12345678.png)
+
+## Задаем меняем зеркало репозитория Armbian на зеркало расположенное в РФ от Яндекса
+- Пишем:
+```
+sudo nano /etc/apt/sources.list.d/armbian.list
+```
+- Мы видим следующее:
+![image](https://psv4.userapi.com/c909418/u306539345/docs/d26/c91e7e2fc70c/53332.png)
+- Меняем http://apt.armbian.com на http://mirror.yandex.ru/mirrors/armbian/apt
+![image](https://psv4.userapi.com/c909228/u306539345/docs/d12/b19b6c147c10/53333.png)
+- Обновляем индекс и список пакетов apt:
+```
+sudo apt update
+```
 
 ## License
 This software is published under the GPL-2.0 License license.

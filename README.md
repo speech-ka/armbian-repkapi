@@ -56,12 +56,19 @@ cd armbian-repkapi
 sudo armbian-config
 ```
 - Переходим в System settings и выбираем Freeze.
+
 ![image](https://psv4.userapi.com/c237131/u306539345/docs/d56/11b3ab1df52e/12345.png)
+
 - Нажимаем кнопку Freeze
+
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d10/26ca6e301b59/123456.png)
+
 - Ждем
+
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d36/f3a68d1b45e7/1234567.png)
+
 - Фон станет красным, не пугаемся это наоборот норма.
+
 ![image](https://psv4.userapi.com/c909518/u306539345/docs/d42/8a8c5a52a009/12345678.png)
 
 ### Задаем меняем зеркало репозитория Armbian на зеркало расположенное в РФ от Яндекса
@@ -71,13 +78,19 @@ sudo armbian-config
 sudo nano /etc/apt/sources.list.d/armbian.list
 ```
 - Мы видим следующее:
+
 ![image](https://psv4.userapi.com/c909418/u306539345/docs/d26/c91e7e2fc70c/53332.png)
+
 - Меняем http://apt.armbian.com на http://mirror.yandex.ru/mirrors/armbian/apt
+
 ![image](https://psv4.userapi.com/c909228/u306539345/docs/d12/b19b6c147c10/53333.png)
+
 - Обновляем индекс и список пакетов apt:
+
 ```
 sudo apt update
 ```
+
 Так же вы можете заменить оригинальный репозиторий http://ports.ubuntu.com на http://mirror.yandex.ru/ubuntu-ports в файле /etc/apt/sources.list
 
 ## License

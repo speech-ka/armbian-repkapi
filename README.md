@@ -57,19 +57,19 @@ sudo armbian-config
 ```
 - Переходим в System settings и выбираем Freeze.
 
-![image](https://i.postimg.cc/64xKhpYN/12345.png)
+![image](https://i.postimg.cc/yxkNsJRW/12345.png)
 
 - Нажимаем кнопку Freeze
 
-![image](https://i.postimg.cc/64xKhpYN/12345.png)
+![image](https://i.postimg.cc/fLWLqqTc/123456.png)
 
 - Ждем
 
-![image](https://i.postimg.cc/5Hjf4G6D/1234567.png)
+![image](https://i.postimg.cc/tgNJ5GyR/1234567.png)
 
 - Фон станет красным, не пугаемся это наоборот норма.
 
-![image](https://i.postimg.cc/62vwRvV0/12345678.png)
+![image](https://i.postimg.cc/bJ6v70sK/12345678.png)
 
 ### Задаем меняем зеркало репозитория Armbian на зеркало расположенное в РФ от Яндекса
 Балансировщик http://apt.armbian.com часто кидает на url'ы которые недоступны с IP адресов расположенных в РФ, фиксируем работу на зеркале от Яндекса.
@@ -79,11 +79,11 @@ sudo nano /etc/apt/sources.list.d/armbian.list
 ```
 - Мы видим следующее:
 
-![image](https://i.postimg.cc/FYT9Qmsj/53332.png)
+![image](https://i.postimg.cc/rpkzxFBY/53332.png)
 
 - Меняем http://apt.armbian.com на http://mirror.yandex.ru/mirrors/armbian/apt
 
-![image](https://i.postimg.cc/VJfYT51f/53333.png)
+![image](https://i.postimg.cc/rwWKDtPr/53333.png)
 
 - Обновляем индекс и список пакетов apt:
 

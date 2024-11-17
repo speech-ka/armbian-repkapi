@@ -3,4 +3,5 @@ BOARD_NAME="Cubieboard 4"
 BOARDFAMILY="sun9i"
 BOARD_MAINTAINER=""
 BOOTCONFIG=Cubieboard4_defconfig
-KERNEL_TARGET="current,edge"
+KERNEL_TARGET="legacy,current,edge"
+KERNEL_TEST_TARGET="current"

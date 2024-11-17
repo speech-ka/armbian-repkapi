@@ -42,6 +42,12 @@ function build_rootfs_and_image() {
 	# Deploy the full apt lists, including the Armbian repo.
 	create_sources_list_and_deploy_repo_key "image-late" "${RELEASE}" "${SDCARD}/"
 
+	# We call this above method too many times. @TODO: find out why and fix the same
+	# We may have a armbian.list.disabled file lying around. Remove the same
+	if [[ -e "${SDCARD}"/etc/apt/sources.list.d/armbian.list.disabled ]]; then
+		rm "${SDCARD}"/etc/apt/sources.list.d/armbian.list.disabled
+	fi
+
 	# remove packages that are no longer needed. rootfs cache + uninstall might have leftovers.
 	LOG_SECTION="apt_purge_unneeded_packages_and_clean_apt_caches" do_with_logging apt_purge_unneeded_packages_and_clean_apt_caches
 
@@ -50,7 +56,7 @@ function build_rootfs_and_image() {
 	LOG_SECTION="apt_lists_copy_from_host_to_image_and_update" do_with_logging apt_lists_copy_from_host_to_image_and_update
 
 	# creating xapian index that synaptic runs faster
-	if [[ "${BUILD_DESKTOP}" == yes && -f "${SDCARD}/usr/sbin/update-apt-xapian-index" ]]; then
+	if [[ "${BUILD_DESKTOP}" == yes && "${BETA}" != "yes" && -f "${SDCARD}/usr/sbin/update-apt-xapian-index" ]]; then
 		display_alert "Recreating Synaptic search index" "Please wait - updating Xapian index for image" "info"
 		chroot_sdcard "/usr/sbin/update-apt-xapian-index -u"
 	fi

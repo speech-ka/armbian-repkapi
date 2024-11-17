@@ -20,12 +20,26 @@ from unidecode import unidecode
 from unidiff import PatchSet
 
 from common.patching_config import PatchingConfig
+from common.term_colors import background_dark_or_light
 
 MAGIC_MBOX_MARKER_STANDARD = "Mon Sep 17 00:00:00 2001"
 MAGIC_MBOX_MARKER_B4 = "git@z Thu Jan  1 00:00:00 1970"
 
 REGEX_PATCH_FILENAMES = r"^patching file \"(.+)\""
 log: logging.Logger = logging.getLogger("patching_utils")
+
+# Magic strings and regex for rewriting patches' "index xxx....yyyy" lines
+index_zero = f"{'0' * 12}"
+index_from_zero = f"index {'0' * 12}..{'1' * 12}"
+index_not_zero = f"index {'1' * 12}..{'2' * 12}"
+index_rewrite_regexp: re.Pattern = re.compile(r"index ([0-9a-f]{12})\.\.([0-9a-f]{12})")
+
+
+# Callback used for rewriting index lines.
+def rewrite_indexes_callback(x: re.Match):  # Preserve zero from's for new file creations.
+	if x.group(1) == index_zero:
+		return index_from_zero
+	return index_not_zero
 
 
 class PatchRootDir:
@@ -703,11 +717,12 @@ class PatchInPatchFile:
 				color = "yellow"
 			else:
 				color = "red"
+		bold = 'bold dim' if background_dark_or_light() == 'light' else 'bold'
 		# @TODO: once our ansi-haste supports it, use [link url=file://blaaa]
 		if self.parent.multiple_patches_in_file:
-			return f"[bold][{color}]{self.markdown_name(skip_markdown=True)}[/bold](:{self.counter})"
+			return f"[{bold}][{color}]{self.markdown_name(skip_markdown=True)}[/{bold}](:{self.counter})"
 		else:
-			return f"[bold {color}]{self.markdown_name(skip_markdown=True)}"
+			return f"[{bold} {color}]{self.markdown_name(skip_markdown=True)}"
 
 	def rich_patch_output(self):
 		ret = self.patch_output
@@ -716,10 +731,11 @@ class PatchInPatchFile:
 			'yellow': ['with fuzz', 'offset ', ' hunks ignored', ' hunk ignored'],
 			'red': ['hunk FAILED', 'hunks FAILED']
 		}
+		bold = 'bold dim' if background_dark_or_light() == 'light' else 'bold'
 		# use Rich's syntax highlighting to highlight with color
 		for color in color_tags:
 			for tag in color_tags[color]:
-				ret = ret.replace(tag, f"[bold {color}]{tag}[/bold {color}]")
+				ret = ret.replace(tag, f"[{bold} {color}]{tag}[/{bold} {color}]")
 		return ret
 
 	def apply_patch_date_to_files(self, working_dir, options):
@@ -805,6 +821,7 @@ def export_commit_as_patch(repo: git.Repo, commit: str):
 		'--zero-commit',  # do not use the git revision, instead 000000...0000
 		'--stat=120',  # 'wider' stat output; default is 80
 		'--stat-graph-width=10',  # shorten the diffgraph graph part, it's too long
+		'--abbrev=12',  # force index length to 12 - essential for the regex below to work
 		"-1", "--stdout", commit
 	],
 		cwd=repo.working_tree_dir,
@@ -819,7 +836,17 @@ def export_commit_as_patch(repo: git.Repo, commit: str):
 		raise Exception(f"Failed to export commit {commit} to patch: {stderr_output}")
 	if stdout_output == "":
 		raise Exception(f"Failed to export commit {commit} to patch: no output")
-	return stdout_output
+
+	# Now, massage the output. We don't want the "index 08c33ec7e9f1..528741fcc0ec 100644" lines changing every time.
+	# We do need to preserve "0000000000.." ones as that indicates new file creation.
+	# Use a regular expression and a callback to decide. Check the top of this file for the regex and callback.
+	rewritten_indexes = re.sub(index_rewrite_regexp, rewrite_indexes_callback, stdout_output)
+
+	# If rewritten is same as original this didn't work, surely.
+	if rewritten_indexes == stdout_output:
+		raise Exception(f"Failed to rewrite indexes in patch output: {stdout_output}")
+
+	return rewritten_indexes
 
 
 # Hack

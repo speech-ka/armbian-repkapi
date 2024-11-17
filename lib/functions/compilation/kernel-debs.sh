@@ -10,7 +10,7 @@
 # This is a re-imagining of mkdebian and builddeb from the kernel tree.
 
 # We wanna produce Debian/Ubuntu compatible packages so we're able to use their standard tools, like
-# `flash-kernel`, `u-boot-menu`, `grub2`, and others, so we gotta stick to their conventions.
+# `u-boot-menu`, `grub2`, and others, so we gotta stick to their conventions.
 
 # The main difference is that this is NOT invoked from KBUILD's Makefile, but instead
 # directly by Armbian, with references to the dirs where KBUILD's
@@ -66,9 +66,11 @@ function prepare_kernel_packaging_debs() {
 	# Due to we call `make install` twice, we will get some `.old` files
 	run_host_command_logged rm -rf "${tmp_kernel_install_dirs[INSTALL_PATH]}/*.old" || true
 
-	# package the linux-image (image, modules, dtbs (if present))
-	display_alert "Packaging linux-image" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
-	create_kernel_deb "linux-image-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_image "linux-image"
+	if [[ "${KERNEL_DTB_ONLY}" != "yes" ]]; then
+		# package the linux-image (image, modules, dtbs (if present))
+		display_alert "Packaging linux-image" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
+		create_kernel_deb "linux-image-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_image "linux-image"
+	fi
 
 	# if dtbs present, package those too separately, for u-boot usage.
 	if [[ -d "${tmp_kernel_install_dirs[INSTALL_DTBS_PATH]}" ]]; then
@@ -76,12 +78,19 @@ function prepare_kernel_packaging_debs() {
 		create_kernel_deb "linux-dtb-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_dtb "linux-dtb"
 	fi
 
-	if [[ "${KERNEL_HAS_WORKING_HEADERS}" == "yes" ]]; then
-		display_alert "Packaging linux-headers" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
-		create_kernel_deb "linux-headers-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_headers "linux-headers"
-	else
-		display_alert "Skipping linux-headers package" "for ${KERNEL_MAJOR_MINOR} kernel version" "info"
+	if [[ "${KERNEL_DTB_ONLY}" != "yes" ]]; then
+		if [[ "${KERNEL_HAS_WORKING_HEADERS}" == "yes" ]]; then
+			display_alert "Packaging linux-headers" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
+			create_kernel_deb "linux-headers-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_headers "linux-headers"
+		else
+			display_alert "Skipping linux-headers package" "for ${KERNEL_MAJOR_MINOR} kernel version" "info"
+		fi
+
+		display_alert "Packaging linux-libc-dev" "${LINUXFAMILY} ${LINUXCONFIG}" "info"
+		create_kernel_deb "linux-libc-dev-${BRANCH}-${LINUXFAMILY}" "${debs_target_dir}" kernel_package_callback_linux_libc_dev "linux-libc-dev"
 	fi
+
+	return 0
 }
 
 function create_kernel_deb() {
@@ -235,7 +244,7 @@ function kernel_package_callback_linux_image() {
 	fi
 
 	if [[ -d "${tmp_kernel_install_dirs[INSTALL_DTBS_PATH]}" ]]; then
-		# /usr/lib/linux-image-${kernel_version_family} is wanted by flash-kernel, u-boot-menu, and other standard Debian/Ubuntu utilities
+		# /usr/lib/linux-image-${kernel_version_family} is wanted by u-boot-menu, and other standard Debian/Ubuntu utilities
 
 		display_alert "DTBs present on kernel output" "DTBs ${package_name}: /usr/lib/linux-image-${kernel_version_family}" "debug"
 		mkdir -p "${package_directory}/usr/lib"
@@ -317,7 +326,7 @@ function kernel_package_callback_linux_dtb() {
 	display_alert "linux-dtb packaging" "${package_directory}" "debug"
 
 	display_alert "Showing tree of Kbuild produced DTBs" "linux-dtb" "debug"
-	run_host_command_logged tree -C --du -h -L 2 "${tmp_kernel_install_dirs[INSTALL_DTBS_PATH]}"
+	run_host_command_logged tree -C --du -h -L 3 "${tmp_kernel_install_dirs[INSTALL_DTBS_PATH]}"
 
 	mkdir -p "${package_directory}/boot/"
 	run_host_command_logged cp -rp "${tmp_kernel_install_dirs[INSTALL_DTBS_PATH]}" "${package_directory}/boot/dtb-${kernel_version_family}"
@@ -457,6 +466,13 @@ function kernel_package_callback_linux_headers() {
 		)
 	fi
 
+	call_extension_method "pre_package_kernel_headers" <<- 'PRE_PACKAGE_KERNEL_HEADERS'
+		*fix kernel headers before packaging*
+		Some (legacy/vendor) kernels need preprocessing of the produced kernel headers before packaging.
+		Use this hook to do that, by modifying the file in place, in `${headers_target_dir}` directory.
+		The kernel sources can be found in `${kernel_work_dir}`.
+	PRE_PACKAGE_KERNEL_HEADERS
+
 	# Generate a control file
 	# TODO: libssl-dev is only required if we're signing modules, which is a kernel .config option.
 	cat <<- CONTROL_FILE > "${package_DEBIAN_dir}/control"
@@ -519,4 +535,30 @@ function kernel_package_callback_linux_headers() {
 			echo "Done compiling kernel-headers tools (${kernel_version_family})."
 		EOT_POSTINST_FINISH
 	)
+}
+
+function kernel_package_callback_linux_libc_dev() {
+	display_alert "linux-libc-dev packaging" "${package_directory}" "debug"
+
+	mkdir -p "${package_directory}/usr"
+	run_host_command_logged cp -rp "${tmp_kernel_install_dirs[INSTALL_HDR_PATH]}/include" "${package_directory}/usr"
+	HOST_ARCH=$(dpkg-architecture -a${ARCH} -q"DEB_HOST_MULTIARCH")
+	run_host_command_logged mkdir "${package_directory}/usr/include/${HOST_ARCH}"
+	run_host_command_logged mv "${package_directory}/usr/include/asm" "${package_directory}/usr/include/${HOST_ARCH}"
+
+	# Generate a control file
+	cat <<- CONTROL_FILE > "${package_DEBIAN_dir}/control"
+		Version: ${artifact_version}
+		Maintainer: ${MAINTAINER} <${MAINTAINERMAIL}>
+		Package: ${package_name}
+		Section: devel
+		Priority: optional
+		Provides: linux-libc-dev
+		Conflicts: linux-libc-dev
+		Architecture: ${ARCH}
+		Description: Armbian Linux support headers for userspace development
+		 This package provides userspaces headers from the Linux kernel.  These headers
+		 are used by the installed headers for GNU glibc and other system libraries.
+		Multi-Arch: same
+	CONTROL_FILE
 }

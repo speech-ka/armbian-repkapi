@@ -10,32 +10,34 @@ enable_extension "sunxi-tools"
 declare -g ARCH=armhf
 declare -g BOOTDELAY=1
 declare -g BOOTPATCHDIR="${BOOTPATCHDIR:-"u-boot-sunxi"}"
-declare -g BOOTBRANCH="${BOOTBRANCH:-"tag:v2023.10"}"
+declare -g BOOTBRANCH="${BOOTBRANCH:-"tag:v2024.01"}"
 UBOOT_TARGET_MAP="${UBOOT_TARGET_MAP:-;;u-boot-sunxi-with-spl.bin}"
 declare -g BOOTSCRIPT="boot-sunxi.cmd:boot.cmd"
 declare -g BOOTENV_FILE='sunxi.txt'
 declare -g LINUXFAMILY=sunxi
 declare -g UBOOT_FW_ENV='0x88000,0x20000' # /etc/fw_env.config offset and env size
+declare -g OVERLAY_DIR="/boot/dtb/allwinner/overlay"
 declare -g ASOUND_STATE='asound.state.sunxi-next'
 declare -g GOVERNOR=ondemand
 
+# shellcheck source=config/sources/families/include/crust_firmware.inc
 source "${BASH_SOURCE%/*}/crust_firmware.inc"
 
 case $BRANCH in
 
 	legacy)
-		declare -g KERNEL_MAJOR_MINOR="5.15" # Major and minor versions of this kernel.
-		declare -g KERNELBRANCH="tag:v5.15.139"
+		declare -g KERNEL_MAJOR_MINOR="6.1" # Major and minor versions of this kernel.
+		declare -g KERNELBRANCH="tag:v6.1.104"
 		;;
 
 	current)
-		declare -g KERNEL_MAJOR_MINOR="6.1" # Major and minor versions of this kernel.
-		declare -g KERNELBRANCH="tag:v6.1.63"
+		declare -g KERNEL_MAJOR_MINOR="6.6" # Major and minor versions of this kernel.
+		declare -g KERNELBRANCH="tag:v6.6.60"
 		;;
 
 	edge)
-		declare -g KERNEL_MAJOR_MINOR="6.6" # Major and minor versions of this kernel.
-		declare -g KERNELBRANCH="tag:v6.6.2"
+		declare -g KERNEL_MAJOR_MINOR="6.11" # Major and minor versions of this kernel.
+		declare -g KERNELBRANCH="tag:v6.11.7"
 		;;
 esac
 

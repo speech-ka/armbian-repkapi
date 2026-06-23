@@ -33,6 +33,8 @@ class AutoPatcherParams:
 		self.root_dirs_by_root_type = root_dirs_by_root_type
 		self.apply_patches_to_git = apply_patches_to_git
 		self.git_repo = git_repo
+		self.all_dt_files_copied: list[str] = []
+		self.all_overlay_files_copied: list[str] = []
 
 
 class AutomaticPatchDescription:
@@ -40,12 +42,18 @@ class AutomaticPatchDescription:
 		self.name = "Not initted name"
 		self.description = "Not initted desc"
 		self.files = []
+		self.overwrites = []
 
 	def rich_name_status(self):
+		if len(self.overwrites) > 0:
+			return f"[bold][red]{self.name}"
 		return f"[bold][blue]{self.name}"
 
 	def rich_diffstats(self):
 		files_bare = []
+		# Always list all overwrites.
+		for one_file in self.overwrites:
+			files_bare.append(f"[OVERWRITTEN]{os.path.basename(one_file)}")
 		max_files_to_show = 15  # show max 15
 		for one_file in self.files[:max_files_to_show]:
 			files_bare.append(os.path.basename(one_file))
@@ -57,7 +65,7 @@ class AutomaticPatchDescription:
 		return f"Armbian Autopatcher: {self.description}"
 
 
-def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str) -> dict[str, str]:
+def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str, dt_files_to_add: list[str], incremental: bool) -> dict[str, str]:
 	ret: dict[str, str] = {}
 	dt_path = os.path.join(git_work_dir, dt_rel_dir)
 	# Bomb if it does not exist or is not a directory
@@ -78,8 +86,8 @@ def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str) 
 	# Parse it into a list of lines
 	makefile_lines = makefile_contents.splitlines()
 	log.info(f"Read {len(makefile_lines)} lines from {makefile_path}")
-	regex_dtb = r"(.*)\s(([a-zA-Z0-9-_]+)\.dtb)(.*)"
-	regex_configopt = r"^dtb-\$\(([a-zA-Z_]+)\)\s+"
+	regex_dtb = r"(.*)\s(([^ \f\n\r\t\v]+)\.dtb)(.*)"
+	regex_configopt = r"^dtb-\$\(([a-zA-Z0-9_]+)\)\s+"
 
 	# For each line, check if it matches the regex_dtb, extract the groups
 	line_counter = 0
@@ -114,18 +122,30 @@ def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str) 
 	# Now compute the preambles and the postamble
 	preamble_lines = makefile_lines[:line_first_match - 1]
 	postamble_lines = makefile_lines[line_last_match:]
-	# Find all .dts files in DT_PATH (not subdirectories), but add to the list without .dts suffix
+
 	dts_files = []
-	listdir: list[str] = os.listdir(dt_path)
-	for file in listdir:
-		if file.endswith(".dts"):
-			dts_files.append(file[:-4])
-	# sort the list. alpha-sort: `meson-sm1-a95xf3-air-gbit` should come sooner than `meson-sm1-a95xf3-air`? why?
-	dts_files.sort()
-	log.info(f"Found {len(dts_files)} .dts files in {dt_path}")
-	# Show them all
-	for dts_file in dts_files:
-		log.debug(f"Found {dts_file}")
+	if incremental:
+		# For incremental, we'll just use the parsed-from-Makefile list of .dts files...
+		for previously_in_makefile_dt in list_dts_basenames:
+			log.debug(f"Adding {previously_in_makefile_dt} to the list of .dts files")
+			dts_files.append(previously_in_makefile_dt)
+		# ...and add the ones we copied. We're passed the list as parameter
+		for one_dt_file in dt_files_to_add:
+			log.debug(f"Adding newly-added DT {one_dt_file} to the list of .dts files")
+			dts_files.append(one_dt_file[:-4])  # remove the .dts suffix
+	else:
+		# Find all .dts files in DT_PATH (not subdirectories), but add to the list without .dts suffix
+		listdir: list[str] = os.listdir(dt_path)
+		for file in listdir:
+			if file.endswith(".dts"):
+				dts_files.append(file[:-4])
+		# sort the list. alpha-sort: `meson-sm1-a95xf3-air-gbit` should come sooner than `meson-sm1-a95xf3-air`? why?
+		dts_files.sort()
+		log.info(f"Found {len(dts_files)} .dts files in {dt_path}")
+		# Show them all
+		for dts_file in dts_files:
+			log.debug(f"Found {dts_file}")
+
 	# Create the mid-amble, which is the list of .dtb files to be built
 	midamble_lines = []
 
@@ -148,11 +168,15 @@ def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str) 
 	overlay_lines = []
 	DT_OVERLAY_PATH = os.path.join(dt_path, "overlay")
 	DT_OVERLAY_MAKEFILE_PATH = os.path.join(DT_OVERLAY_PATH, "Makefile")
+	overlay_lines.append("")
 	if os.path.isfile(DT_OVERLAY_MAKEFILE_PATH):
-		ret["DT_OVERLAY_MAKEFILE_PATH"] = DT_OVERLAY_MAKEFILE_PATH
-		ret["DT_OVERLAY_PATH"] = DT_OVERLAY_PATH
-		overlay_lines.append("")
-		overlay_lines.append("subdir-y       := $(dts-dirs) overlay")
+		if incremental:
+			overlay_lines.append("# Armbian: Incremental: assuming overlay targets are already in the Makefile")
+		else:
+			ret["DT_OVERLAY_MAKEFILE_PATH"] = DT_OVERLAY_MAKEFILE_PATH
+			ret["DT_OVERLAY_PATH"] = DT_OVERLAY_PATH
+			overlay_lines.append("# Added by Armbian autopatcher for DT overlay")
+			overlay_lines.append("subdir-y       := $(dts-dirs) overlay")
 
 	# Now join the preambles, midamble, postamble and overlay stuff into a single list
 	new_makefile_lines = preamble_lines + midamble_lines + postamble_lines + overlay_lines
@@ -160,6 +184,9 @@ def auto_patch_dt_makefile(git_work_dir: str, dt_rel_dir: str, config_var: str) 
 	with open(makefile_path, "w") as f:
 		f.write("\n".join(new_makefile_lines))
 	log.info(f"Wrote {len(new_makefile_lines)} lines to {makefile_path}")
+
+	if incremental:
+		ret["extra_desc"] += " (incremental)"
 
 	return ret
 
@@ -210,17 +237,32 @@ def copy_bare_files(autopatcher_params: AutoPatcherParams, type: str) -> list[Au
 			all_files_to_copy_dict[base_filename] = one_file
 		# do the actual copy
 		all_copied_files = []
+		overwritten_files = []
 		for one_file in all_files_to_copy_dict:
 			log.debug(f"Copy '{one_file}' (from {all_files_to_copy_dict[one_file]}) to '{full_path_target_dir}'...")
 			full_path_target_file = os.path.join(full_path_target_dir, one_file)
+			# If the target already exists, emit a warning; DTs land upstream all the time and we might forget to remove them from our 'dt' directory
+			if os.path.exists(full_path_target_file):
+				overwritten_files.append(full_path_target_file)
+				log.warning(f"Target file '{one_file}' already exists; will overwrite it; consider if it should be removed.")
 			shutil.copyfile(all_files_to_copy_dict[one_file], full_path_target_file)
 			all_copied_files.append(full_path_target_file)
+			if type == "dt":
+				if one_file.endswith(".dts"):
+					autopatcher_params.all_dt_files_copied.append(one_file)
+			elif type == "overlay":
+				autopatcher_params.all_overlay_files_copied.append(one_file)
 
 		# If more than 0 files were copied, commit them if we're doing commits
 		desc = AutomaticPatchDescription()
 		desc.name = f"Armbian Bare {type.upper()} auto-patch"
 		desc.description = f"Armbian Bare {type.upper()} files for {target_dir}"
+		# if overwritten files, add to description and name
+		if len(overwritten_files) > 0:
+			desc.description += f" (overwriting {len(overwritten_files)} files)"
+			desc.name += f" (overwriting {len(overwritten_files)} files)"
 		desc.files = all_copied_files
+		desc.overwrites = overwritten_files
 		ret_desc_list.append(desc)
 
 		if autopatcher_params.apply_patches_to_git and len(all_copied_files) > 0:
@@ -241,7 +283,9 @@ def auto_patch_all_dt_makefiles(autopatcher_params: AutoPatcherParams) -> list[A
 	for one_autopatch_config in autopatcher_params.pconfig.autopatch_makefile_dt_configs:
 		log.warning(f"Autopatching DT Makefile in {one_autopatch_config.directory} with config '{one_autopatch_config.config_var}'...")
 		autopatch_makefile_info = auto_patch_dt_makefile(
-			autopatcher_params.git_work_dir, one_autopatch_config.directory, one_autopatch_config.config_var)
+			autopatcher_params.git_work_dir, one_autopatch_config.directory, one_autopatch_config.config_var,
+			autopatcher_params.all_dt_files_copied, one_autopatch_config.incremental
+		)
 
 		desc = AutomaticPatchDescription()
 		desc.name = "Armbian DT Makefile auto-patch"

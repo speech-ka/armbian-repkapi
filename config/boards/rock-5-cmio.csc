@@ -4,7 +4,7 @@ BOARDFAMILY="rockchip-rk3588"
 BOARD_MAINTAINER=""
 BOOTCONFIG="radxa-cm5-io-rk3588s_defconfig"
 BOOT_SOC="rk3588"
-KERNEL_TARGET="legacy"
+KERNEL_TARGET="vendor"
 FULL_DESKTOP="yes"
 BOOT_LOGO="desktop"
 BOOT_FDT_FILE="rockchip/rk3588s-radxa-cm5-io.dtb"
@@ -12,7 +12,6 @@ BOOT_SCENARIO="spl-blobs"
 BOOT_SUPPORT_SPI="yes"
 BOOT_SPI_RKSPI_LOADER="yes"
 IMAGE_PARTITION_TABLE="gpt"
-SKIP_BOOTSPLASH="yes" # Skip boot splash patch, conflicts with CONFIG_VT=yes
 
 function post_family_tweaks__rock5cmio_naming_audios() {
 	display_alert "$BOARD" "Renaming Rock CM5 audios" "info"

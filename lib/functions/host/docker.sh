@@ -225,6 +225,7 @@ function docker_cli_prepare_dockerfile() {
 		!/VERSION
 		!/LICENSE
 		!/compile.sh
+		!/requirements.txt
 		!/lib
 		!/extensions
 		!/config/sources
@@ -377,8 +378,9 @@ function docker_cli_prepare_launch() {
 		# Change the ccache directory to the named volume or bind created. @TODO: this needs more love. it works for Docker, but not sudo
 		"--env" "CCACHE_DIR=${DOCKER_ARMBIAN_TARGET_PATH}/cache/ccache"
 
-		# Pass down the TERM and the COLUMNS
+		# Pass down the TERM, COLORFGBG, and the COLUMNS
 		"--env" "TERM=${TERM}"
+		"--env" "COLORFGBG=${COLORFGBG-}"
 		"--env" "COLUMNS=${COLUMNS:-"160"}"
 
 		# Pass down the CI env var (GitHub Actions, Jenkins, etc)
@@ -458,6 +460,8 @@ function docker_cli_prepare_launch() {
 		DOCKER_ARGS+=("--mount" "type=bind,source=${GITHUB_STEP_SUMMARY},target=${GITHUB_STEP_SUMMARY}")
 		DOCKER_ARGS+=("--env" "GITHUB_STEP_SUMMARY=${GITHUB_STEP_SUMMARY}")
 
+	fi
+	if [[ "${CI}" == "true" ]]; then
 		# For pushing/pulling from OCI/ghcr.io; if OCI_TARGET_BASE is set:
 		# - bind-mount the Docker config file (if it exists)
 		if [[ -n "${OCI_TARGET_BASE}" ]]; then
@@ -465,7 +469,7 @@ function docker_cli_prepare_launch() {
 			DOCKER_ARGS+=("--env" "OCI_TARGET_BASE=${OCI_TARGET_BASE}")
 		fi
 
-		# Mount the Docker config file (if it exists) -- always, even if OCI_TARGET_BASE is not set; @TODO: why only in GitHub actions?
+		# Mount the Docker config file (if it exists) -- always, even if OCI_TARGET_BASE is not set;
 		local docker_config_file_host="${HOME}/.docker/config.json"
 		local docker_config_file_docker="/root/.docker/config.json" # inside Docker
 		if [[ -f "${docker_config_file_host}" ]]; then
@@ -568,16 +572,13 @@ function docker_cli_launch() {
 		run_host_command_logged find "${SRC}/userpatches" -name ".DS_Store" -type f -delete "||" true
 	fi
 
-	# Produce the re-launch params.
-	declare -g ARMBIAN_CLI_FINAL_RELAUNCH_ARGS=()
-	declare -g ARMBIAN_CLI_FINAL_RELAUNCH_ENVS=()
-	produce_relaunch_parameters # produces ARMBIAN_CLI_FINAL_RELAUNCH_ARGS and ARMBIAN_CLI_FINAL_RELAUNCH_ENVS
-
-	# Add the relaunch envs to DOCKER_ARGS.
-	for env in "${ARMBIAN_CLI_FINAL_RELAUNCH_ENVS[@]}"; do
-		display_alert "Adding Docker env" "${env}" "debug"
-		DOCKER_ARGS+=("--env" "${env}")
-	done
+	# This check is performed in order to set up the host so that it has a loop device, as calling losetup inside of
+	# docker creates a loop device but does not make it available to the already running container
+	# The amount of privileges and capabilities given is a bare minimum needed for losetup to work
+	if [[ ! -e /dev/loop0 ]]; then
+		display_alert "Running losetup in a temporary container" "because no loop devices exist" "info"
+		run_host_command_logged docker run --rm --privileged --cap-add=MKNOD "${DOCKER_ARMBIAN_INITIAL_IMAGE_TAG}" /usr/sbin/losetup -f
+	fi
 
 	display_alert "-----------------Relaunching in Docker after ${SECONDS}s------------------" "here comes the 🐳" "info"
 

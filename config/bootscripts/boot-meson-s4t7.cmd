@@ -8,11 +8,8 @@ setenv console "both"
 setenv verbosity "1"
 setenv earlycon "off"
 setenv bootlogo "false"
-setenv earlyconuart "0xfe078000"
 setenv displaymode "1080p60hz"
 setenv force_16x9_display "false"
-
-if test "${board_name}" = "kvim1s"; then setenv earlyconuart "0xfe07a000"; fi
 
 # Show what uboot default fdtfile is
 echo "U-boot default fdtfile: ${fdtfile}"
@@ -26,38 +23,40 @@ if test "${console}" = "both"; then setenv console_serial "true"; setenv console
 if test "${console}" = "serial"; then setenv console_serial "true"; fi
 if test "${console}" = "display"; then setenv console_display "true"; fi
 
-if test "${console_serial}" = "true"; then setenv consoleargs "console=ttyS0,921600"; fi
-if test "${console_display}" = "true"; then setenv consoleargs "console=tty1 ${consoleargs}"; fi
+if test "${console_display}" = "true"; then setenv consoleargs "console=tty0"; fi
+if test "${console_serial}" = "true"; then setenv consoleargs "console=ttyS0,921600 ${consoleargs}"; fi
 
-if test "${earlycon}" = "on"; then setenv consoleargs "earlycon=aml-uart,${earlyconuart} ${consoleargs}"; fi
+if test "${earlycon}" != "on"; then
+	setexpr bootargs sub " earlycon=\\S* " " " "${bootargs}"
+fi
 
 if test "${bootlogo}" = "true"; then
-	setenv consoleargs "splash plymouth.ignore-serial-consoles ${consoleargs}"
+	setenv plymouthargs "splash plymouth.ignore-serial-consoles"
 else
-	setenv consoleargs "splash=verbose ${consoleargs}"
+	setenv plymouthargs "splash=verbose"
 fi
 
-if test -n "${hdmimode}" ; then
-	if test ${display_height} -ge 2160 ; then
-		setenv displaymode "2160p60hz"
-	elif test ${display_height} -ge 1080 ; then
-		setenv displaymode "1080p60hz"
-	else
-		setenv displaymode "720p60hz"
-	fi
-fi
+setexpr bootargs sub "rootfstype=\\S*" "rootfstype=${rootfstype}" "${bootargs}"
 
-if test "${force_16x9_display}" = "true"; then
-	setenv hdmimode ${displaymode}
-fi
-
-setenv displayargs "logo=${display_layer},loaded,${fb_addr} vout=${hdmimode},${vout_init} panel_type=${panel_type} hdmitx=${cecconfig},${colorattribute} hdmimode=${hdmimode} hdmichecksum=${hdmichecksum} dolby_vision_on=${dolby_vision_on} hdr_policy=${hdr_policy} hdr_priority=${hdr_priority} frac_rate_policy=${frac_rate_policy} hdmi_read_edid=${hdmi_read_edid} cvbsmode=${cvbsmode} osd_reverse=${osd_reverse} video_reverse=${video_reverse}"
-
-setenv bootargs "root=${rootdev} rootwait rootfstype=${rootfstype} ${consoleargs} no_console_suspend ${displayargs} loglevel=${verbosity} mac=${eth_mac} khadas.serial=${usid} partition_type=generic ${extraargs} ${extraboardargs}"
+setenv bootargs "root=${rootdev} ${bootargs} ${consoleargs} partition_type=generic loglevel=${verbosity} ${plymouthargs} ${extraargs} ${extraboardargs}"
 
 load ${devtype} ${devnum} ${fdt_addr_r} ${prefix}dtb/${fdtfile}
 fdt addr ${fdt_addr_r}
 fdt resize 65536
+
+if test "${mipi_lcd_exist}" = "0"; then
+	fdt set /lcd status disabled
+	fdt set /lcd1 status disabled
+	fdt set /lcd2 status disabled
+	fdt set /soc/apb4@fe000000/i2c@6c000/gt9xx@14 status disabled
+	fdt set /soc/apb4@fe000000/i2c@6c000/ft5336@38 status disabled
+else
+	if test "${panel_type}" = "mipi_1"; then
+		fdt set /drm-subsystem fbdev_sizes <1920 1200 1920 2400 32>
+	else
+		fdt set /drm-subsystem fbdev_sizes <1080 1920 1080 3840 32>
+	fi
+fi
 
 for overlay_file in ${overlays}; do
 	if load ${devtype} ${devnum} ${scriptaddr} ${prefix}dtb/amlogic/overlay/${overlay_prefix}-${overlay_file}.dtbo; then
@@ -90,13 +89,8 @@ fi
 
 # The symlinks for kernel and initrd.img are at different locations in debian and ubuntu
 # Check and load from a location that exists
-if test -e ${devtype} ${devnum} /vmlinuz; then
-	load ${devtype} ${devnum} ${kernel_addr_r} /vmlinuz
-	load ${devtype} ${devnum} ${ramdisk_addr_r} /initrd.img
-else
-	load ${devtype} ${devnum} ${kernel_addr_r} ${prefix}vmlinuz
-	load ${devtype} ${devnum} ${ramdisk_addr_r} ${prefix}initrd.img
-fi
+load ${devtype} ${devnum} ${kernel_addr_r} ${prefix}Image
+load ${devtype} ${devnum} ${ramdisk_addr_r} ${prefix}Initrd
 booti ${kernel_addr_r} ${ramdisk_addr_r}:${filesize} ${fdt_addr_r}
 
 # Recompile with:
